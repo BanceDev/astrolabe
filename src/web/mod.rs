@@ -7,7 +7,7 @@ mod webview;
 pub use view::{Action, WebView};
 pub use webview::view;
 
-pub use engine::servo::Servo;
+pub use engine::webkitgtk::WebKitGTK;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageInfo {

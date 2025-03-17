@@ -1,6 +1,16 @@
+<p align="center">
+  <img width="256" height=auto src="https://github.com/BanceDev/astrolabe/blob/main/logo.svg">
+  <br/>
+  <img src="https://img.shields.io/github/contributors/bancedev/astrolabe" alt="contributors">
+  <img src="https://img.shields.io/github/license/bancedev/astrolabe" alt="license">
+  <img src="https://img.shields.io/github/forks/bancedev/astrolabe" alt="forks">
+</p>
+
+---
+
 # Astrolabe
 
-A minimal web browser for the COSMIC desktop
+A celestial navigator for the web on the COSMIC desktop.
 
 ## Installation
 
