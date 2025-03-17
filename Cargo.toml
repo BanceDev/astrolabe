@@ -18,6 +18,9 @@ tokio = { version = "1.41.0", features = ["full"] }
 url = "2.5.2"
 rand = "0.8.5"
 html = "0.6.3"
+smol_str = "0.2.2"
+ul-next = "0.4"
+clipboard-rs = "0.2.1"
 
 [dependencies.i18n-embed]
 version = "0.15"

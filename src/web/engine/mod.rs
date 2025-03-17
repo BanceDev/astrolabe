@@ -4,7 +4,7 @@ use cosmic::iced::mouse::{self, Interaction};
 use cosmic::iced::Point;
 use cosmic::iced::Size;
 
-pub mod webkitgtk;
+pub mod ultralight;
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum PageType {

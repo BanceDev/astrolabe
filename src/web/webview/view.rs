@@ -1,3 +1,4 @@
+use cosmic::app::Task;
 use cosmic::iced::advanced::{
     self,
     graphics::core::event,
@@ -14,7 +15,6 @@ use cosmic::iced::{Event, Length, Rectangle};
 use cosmic::iced::{Point, Size};
 use cosmic::theme::Theme;
 use cosmic::Element;
-use cosmic::Task;
 use url::Url;
 
 use crate::web::{engine, ImageInfo, PageType, ViewId};
@@ -130,14 +130,14 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                 let url = self.engine.get_url(self.get_current_view_id());
                 if self.url != url {
                     self.url = url.clone();
-                    tasks.push(Task::done(on_url_change(url)))
+                    tasks.push(cosmic::Task::done(on_url_change(url)).map(cosmic::Action::from))
                 }
             }
             if let Some(on_title_change) = &self.on_title_change {
                 let title = self.engine.get_title(self.get_current_view_id());
                 if self.title != title {
                     self.title = title.clone();
-                    tasks.push(Task::done(on_title_change(title)))
+                    tasks.push(cosmic::Task::done(on_title_change(title)).map(cosmic::Action::from))
                 }
             }
         }
@@ -161,7 +161,9 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                 self.view_ids.remove(self.get_current_view_id());
 
                 if let Some(on_close_view) = &self.on_close_view {
-                    tasks.push(Task::done(on_close_view.clone()))
+                    tasks.push(cosmic::Task::done(cosmic::Action::App(
+                        on_close_view.clone(),
+                    )))
                 }
             }
             Action::CloseView(index) => {
@@ -169,15 +171,16 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                 self.view_ids.remove(self.index_as_view_id(index));
 
                 if let Some(on_close_view) = &self.on_close_view {
-                    tasks.push(Task::done(on_close_view.clone()))
+                    tasks.push(cosmic::Task::done(on_close_view.clone()).map(cosmic::Action::from))
                 }
             }
             Action::CreateView(page_type) => {
+                println!("in create view!");
                 let id = self.engine.new_view(self.view_size, Some(page_type));
                 self.view_ids.push(id);
 
                 if let Some(on_create_view) = &self.on_create_view {
-                    tasks.push(Task::done(on_create_view.clone()))
+                    tasks.push(cosmic::Task::done(on_create_view.clone()).map(cosmic::Action::from))
                 }
             }
             Action::GoBack => {
@@ -229,6 +232,16 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
             self.engine.get_cursor(self.get_current_view_id()),
         )
         .into()
+    }
+
+    pub fn init(&mut self) {
+        println!("in init!");
+        let id = self.engine.new_view(
+            self.view_size,
+            Some(PageType::Url("https://bance.dev".to_string())),
+        );
+        self.view_ids.push(id);
+        self.current_view_index = Some(0);
     }
 }
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="256" height=auto src="https://github.com/BanceDev/astrolabe/blob/main/logo.svg">
+  <img width="256" height=auto src="https://github.com/BanceDev/astrolabe/blob/main/icon.svg">
   <br/>
   <img src="https://img.shields.io/github/contributors/bancedev/astrolabe" alt="contributors">
   <img src="https://img.shields.io/github/license/bancedev/astrolabe" alt="license">

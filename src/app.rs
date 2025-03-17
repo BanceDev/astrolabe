@@ -2,10 +2,11 @@
 
 use crate::config::Config;
 use crate::fl;
+use crate::web;
 use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
-use cosmic::iced::{Alignment, Length, Subscription};
+use cosmic::iced::{time, Alignment, Length, Subscription};
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{cosmic_theme, theme, Application, ApplicationExt, Apply, Element};
 use futures_util::SinkExt;
@@ -13,6 +14,7 @@ use std::collections::HashMap;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
+static URL: &'static str = "https://bance.dev";
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
@@ -27,6 +29,14 @@ pub struct AppModel {
     key_binds: HashMap<menu::KeyBind, MenuAction>,
     // Configuration data that persists between application runs.
     config: Config,
+    // Embedded web view
+    webview: web::WebView<web::Ultralight, Message>,
+    // url of the webview
+    webview_url: Option<String>,
+    // the current view
+    current_view: Option<u32>,
+    // view count
+    num_views: u32,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -37,6 +47,12 @@ pub enum Message {
     ToggleContextPage(ContextPage),
     UpdateConfig(Config),
     LaunchUrl(String),
+    WebView(web::Action),
+    CreateWebView,
+    WebViewCreated,
+    UrlChanged(String),
+    CycleWebView,
+    Update,
 }
 
 /// Create a COSMIC application from the app model
@@ -104,8 +120,14 @@ impl Application for AppModel {
                     }
                 })
                 .unwrap_or_default(),
+            webview: web::WebView::new()
+                .on_create_view(Message::WebViewCreated)
+                .on_url_change(Message::UrlChanged),
+            webview_url: None,
+            current_view: None,
+            num_views: 0,
         };
-
+        app.webview.init();
         // Create a startup command that sets the window title.
         let command = app.update_title();
 
@@ -176,13 +198,7 @@ impl Application for AppModel {
     /// Application events will be processed through the view. Any messages emitted by
     /// events received by widgets will be passed to the update method.
     fn view(&self) -> Element<Self::Message> {
-        widget::text::title1(fl!("welcome"))
-            .apply(widget::container)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Horizontal::Center)
-            .align_y(Vertical::Center)
-            .into()
+        self.webview.view().map(Message::WebView).into()
     }
 
     /// Register subscriptions for this application.
@@ -210,9 +226,11 @@ impl Application for AppModel {
                     // for why in update.errors {
                     //     tracing::error!(?why, "app config error");
                     // }
-
                     Message::UpdateConfig(update.config)
                 }),
+            time::every(std::time::Duration::from_millis(10))
+                .map(|_| web::Action::Update)
+                .map(Message::WebView),
         ])
     }
 
@@ -251,6 +269,50 @@ impl Application for AppModel {
                     eprintln!("failed to open {url:?}: {err}");
                 }
             },
+
+            Message::WebView(msg) => {
+                return self.webview.update(msg);
+            }
+
+            Message::CreateWebView => {
+                println!("fok from create web view");
+                return self
+                    .webview
+                    .update(web::Action::CreateView(web::PageType::Url(URL.to_string())))
+                    .map(cosmic::Action::from);
+            }
+
+            Message::WebViewCreated => {
+                println!("fok from webview created");
+                if self.current_view == None {
+                    return cosmic::Task::done(Message::CycleWebView).map(cosmic::Action::from);
+                }
+
+                self.num_views += 1;
+            }
+
+            Message::UrlChanged(url) => {
+                self.webview_url = Some(url);
+            }
+
+            Message::CycleWebView => {
+                println!("fok from cycle");
+                if let Some(current_view) = self.current_view.as_mut() {
+                    if *current_view + 1 > self.num_views {
+                        *current_view = 0;
+                    } else {
+                        *current_view += 1;
+                    };
+                    return self.webview.update(web::Action::ChangeView(*current_view));
+                } else {
+                    self.current_view = Some(0);
+                    return self.webview.update(web::Action::ChangeView(0));
+                }
+            }
+
+            Message::Update => {
+                return self.webview.update(web::Action::Update);
+            }
         }
         Task::none()
     }

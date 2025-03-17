@@ -2,6 +2,7 @@
 *.pdb
 **/*.rs.bk
 debug/
+default/
 target/
 vendor/
 vendor.tar
