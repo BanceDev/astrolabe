@@ -1,5 +1,5 @@
 name := 'astrolabe'
-appid := 'com.github.bancedev.astrolabe'
+appid := 'com.bancedev.astrolabe'
 
 rootdir := ''
 prefix := '/usr'

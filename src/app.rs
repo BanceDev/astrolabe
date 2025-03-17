@@ -2,7 +2,7 @@
 
 use crate::config::Config;
 use crate::fl;
-use cosmic::app::{context_drawer, Core, Task};
+use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Alignment, Length, Subscription};
@@ -51,7 +51,7 @@ impl Application for AppModel {
     type Message = Message;
 
     /// Unique identifier in RDNN (reverse domain name notation) format.
-    const APP_ID: &'static str = "com.github.bancedev.astrolabe";
+    const APP_ID: &'static str = "com.bancedev.astrolabe";
 
     fn core(&self) -> &Core {
         &self.core
@@ -70,16 +70,19 @@ impl Application for AppModel {
             .text(fl!("page-id", num = 1))
             .data::<Page>(Page::Page1)
             .icon(icon::from_name("applications-science-symbolic"))
+            .closable()
             .activate();
 
         nav.insert()
             .text(fl!("page-id", num = 2))
             .data::<Page>(Page::Page2)
+            .closable()
             .icon(icon::from_name("applications-system-symbolic"));
 
         nav.insert()
             .text(fl!("page-id", num = 3))
             .data::<Page>(Page::Page3)
+            .closable()
             .icon(icon::from_name("applications-games-symbolic"));
 
         // Construct the app model with the runtime's core.
@@ -120,6 +123,32 @@ impl Application for AppModel {
         )]);
 
         vec![menu_bar.into()]
+    }
+
+    fn nav_bar(&self) -> Option<Element<cosmic::Action<Self::Message>>> {
+        if !self.core().nav_bar_active() {
+            return None;
+        }
+
+        let nav_model = self.nav_model()?;
+
+        let mut nav =
+            cosmic::widget::nav_bar(nav_model, |id| cosmic::Action::Cosmic(Action::NavBar(id)))
+                .on_context(|id| cosmic::Action::Cosmic(Action::NavBarContext(id)))
+                .close_icon(
+                    widget::icon::from_name("window-close-symbolic")
+                        .size(16)
+                        .icon(),
+                )
+                .into_container()
+                .width(Length::Shrink)
+                .height(Length::Shrink);
+
+        if !self.core().is_condensed() {
+            nav = nav.max_width(280);
+        }
+
+        Some(Element::from(nav))
     }
 
     /// Enables the COSMIC application to create a nav bar with this model.

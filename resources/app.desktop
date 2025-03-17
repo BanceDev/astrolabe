@@ -2,7 +2,7 @@
 Name=Astrolabe
 Comment=A minimal web browser for the COSMIC desktop
 Type=Application
-Icon=com.github.bancedev.astrolabe
+Icon=com.bancedev.astrolabe
 Exec=astrolabe %F
 Terminal=false
 StartupNotify=true

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.github.bancedev.astrolabe</id>
+  <id>com.bancedev.astrolabe</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>Astrolabe</name>
@@ -9,9 +9,9 @@
     https://github.com/BanceDev/astrolabe.git/raw/main/resources/icons/hicolor/scalable/apps/icon.svg
   </icon>
   <url type="vcs-browser">https://github.com/BanceDev/astrolabe.git</url>
-  <launchable type="desktop-id">com.github.bancedev.astrolabe.desktop</launchable>
+  <launchable type="desktop-id">com.bancedev.astrolabe.desktop</launchable>
   <provides>
-    <id>com.github.bancedev.astrolabe</id>
+    <id>com.bancedev.astrolabe</id>
     <binaries>
       <binary>astrolabe</binary>
     </binaries>
