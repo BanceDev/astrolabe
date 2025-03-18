@@ -24,7 +24,6 @@ use crate::web::{engine, ImageInfo, PageType, ViewId};
 
 pub enum Action {
     ChangeView(u32),
-    CloseCurrentView,
     CloseView(u32),
     CreateView(PageType),
     GoBack,
@@ -156,26 +155,35 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                 }
                 self.current_view_index = Some(index as usize);
             }
-            Action::CloseCurrentView => {
-                self.engine.remove_view(self.get_current_view_id());
-                self.view_ids.remove(self.get_current_view_id());
-
-                if let Some(on_close_view) = &self.on_close_view {
-                    tasks.push(cosmic::Task::done(cosmic::Action::App(
-                        on_close_view.clone(),
-                    )))
-                }
-            }
             Action::CloseView(index) => {
-                self.engine.remove_view(self.index_as_view_id(index));
-                self.view_ids.remove(self.index_as_view_id(index));
+                let id = self.index_as_view_id(index);
+                self.view_ids.remove(index as usize);
+                self.engine.remove_view(id);
+                // only change view if current or lower is closed
+                if let Some(cur_idx) = self.current_view_index {
+                    if index as usize == cur_idx {
+                        println!("{index}");
+                        {
+                            self.view_size.width += 10;
+                            self.view_size.height -= 10;
+                            self.engine.resize(self.view_size);
+                            self.view_size.width -= 10;
+                            self.view_size.height += 10;
+                            self.engine.resize(self.view_size);
+                            self.engine
+                                .request_render(self.index_as_view_id(index - 1), self.view_size);
+                        }
+                    } else if index as usize <= cur_idx {
+                        // this conditional is ugly
+                        self.current_view_index = Some((index - 1) as usize);
+                    }
+                }
 
                 if let Some(on_close_view) = &self.on_close_view {
                     tasks.push(cosmic::Task::done(on_close_view.clone()).map(cosmic::Action::from))
                 }
             }
             Action::CreateView(page_type) => {
-                println!("in create view!");
                 let id = self.engine.new_view(self.view_size, Some(page_type));
                 self.view_ids.push(id);
 
@@ -235,13 +243,21 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
     }
 
     pub fn init(&mut self) {
-        println!("in init!");
         let id = self.engine.new_view(
             self.view_size,
-            Some(PageType::Url("https://bance.dev".to_string())),
+            // TODO: put a homepage app here
+            Some(PageType::Url("https://system76.com/cosmic/".to_string())),
         );
         self.view_ids.push(id);
         self.current_view_index = Some(0);
+    }
+
+    pub fn get_current_view_title(&self) -> String {
+        self.engine.get_title(self.get_current_view_id())
+    }
+
+    pub fn get_view_title(&self, index: u32) -> String {
+        self.engine.get_title(self.index_as_view_id(index))
     }
 }
 

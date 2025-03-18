@@ -1,6 +1,7 @@
 app-title = Astrolabe
 about = About
 view = View
-welcome = Welcome to COSMIC! ✨
+file = File
+new-tab = New Tab
 page-id = Page { $num }
 git-description = Git commit {$hash} on {$date}

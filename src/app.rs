@@ -7,6 +7,7 @@ use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{time, Alignment, Length, Subscription};
+use cosmic::widget::segmented_button::Entity;
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{cosmic_theme, theme, Application, ApplicationExt, Apply, Element};
 use futures_util::SinkExt;
@@ -48,10 +49,12 @@ pub enum Message {
     UpdateConfig(Config),
     LaunchUrl(String),
     WebView(web::Action),
-    CreateWebView,
     WebViewCreated,
     UrlChanged(String),
     CycleWebView,
+    GotoTab(u32),
+    NewTab,
+    CloseTab(Entity),
     Update,
 }
 
@@ -80,26 +83,7 @@ impl Application for AppModel {
     /// Initializes the application with any given flags and startup commands.
     fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
         // Create a nav bar with three page items.
-        let mut nav = nav_bar::Model::default();
-
-        nav.insert()
-            .text(fl!("page-id", num = 1))
-            .data::<Page>(Page::Page1)
-            .icon(icon::from_name("applications-science-symbolic"))
-            .closable()
-            .activate();
-
-        nav.insert()
-            .text(fl!("page-id", num = 2))
-            .data::<Page>(Page::Page2)
-            .closable()
-            .icon(icon::from_name("applications-system-symbolic"));
-
-        nav.insert()
-            .text(fl!("page-id", num = 3))
-            .data::<Page>(Page::Page3)
-            .closable()
-            .icon(icon::from_name("applications-games-symbolic"));
+        let nav = nav_bar::Model::default();
 
         // Construct the app model with the runtime's core.
         let mut app = AppModel {
@@ -124,25 +108,42 @@ impl Application for AppModel {
                 .on_create_view(Message::WebViewCreated)
                 .on_url_change(Message::UrlChanged),
             webview_url: None,
-            current_view: None,
-            num_views: 0,
+            current_view: Some(0), // this will lead to a crash if init isnt called
+            num_views: 1,
         };
         app.webview.init();
         // Create a startup command that sets the window title.
         let command = app.update_title();
+
+        app.nav
+            .insert()
+            .text(app.webview.get_view_title(0))
+            .data::<u32>(0)
+            .icon(icon::from_name("applications-science-symbolic"))
+            .closable()
+            .activate();
 
         (app, command)
     }
 
     /// Elements to pack at the start of the header bar.
     fn header_start(&self) -> Vec<Element<Self::Message>> {
-        let menu_bar = menu::bar(vec![menu::Tree::with_children(
-            menu::root(fl!("view")),
-            menu::items(
-                &self.key_binds,
-                vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
+        let menu_bar = menu::bar(vec![
+            menu::Tree::with_children(
+                menu::root(fl!("file")),
+                menu::items(
+                    &self.key_binds,
+                    vec![menu::Item::Button(fl!("new-tab"), None, MenuAction::NewTab)],
+                ),
             ),
-        )]);
+            menu::Tree::with_children(
+                menu::root(fl!("view")),
+                menu::items(
+                    &self.key_binds,
+                    vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
+                ),
+            ),
+        ]);
 
         vec![menu_bar.into()]
     }
@@ -162,6 +163,7 @@ impl Application for AppModel {
                         .size(16)
                         .icon(),
                 )
+                .on_close(|id| cosmic::Action::App(Message::CloseTab(id)))
                 .into_container()
                 .width(Length::Shrink)
                 .height(Length::Shrink);
@@ -274,29 +276,18 @@ impl Application for AppModel {
                 return self.webview.update(msg);
             }
 
-            Message::CreateWebView => {
-                println!("fok from create web view");
-                return self
-                    .webview
-                    .update(web::Action::CreateView(web::PageType::Url(URL.to_string())))
-                    .map(cosmic::Action::from);
-            }
-
             Message::WebViewCreated => {
-                println!("fok from webview created");
-                if self.current_view == None {
-                    return cosmic::Task::done(Message::CycleWebView).map(cosmic::Action::from);
-                }
-
                 self.num_views += 1;
+                return cosmic::Task::done(Message::CycleWebView).map(cosmic::Action::from);
             }
 
             Message::UrlChanged(url) => {
                 self.webview_url = Some(url);
+                self.nav
+                    .text_set(self.nav.active(), self.webview.get_current_view_title());
             }
 
             Message::CycleWebView => {
-                println!("fok from cycle");
                 if let Some(current_view) = self.current_view.as_mut() {
                     if *current_view + 1 > self.num_views {
                         *current_view = 0;
@@ -310,9 +301,51 @@ impl Application for AppModel {
                 }
             }
 
+            Message::GotoTab(tab) => {
+                if tab <= self.num_views {
+                    return self.webview.update(web::Action::ChangeView(tab));
+                }
+            }
+
             Message::Update => {
                 return self.webview.update(web::Action::Update);
             }
+
+            Message::NewTab => {
+                // TODO: startpage will go here too
+                self.nav
+                    .insert()
+                    .text("")
+                    .data::<u32>(self.num_views)
+                    .icon(icon::from_name("applications-science-symbolic"))
+                    .closable()
+                    .activate();
+
+                return self
+                    .webview
+                    .update(web::Action::CreateView(web::PageType::Url(URL.to_string())))
+                    .map(cosmic::Action::from);
+            }
+
+            Message::CloseTab(id) => {
+                if let Some(view_index) = self.nav.data::<u32>(id) {
+                    self.num_views -= 1;
+                    // if they close the last tab exit gracefully
+                    if self.num_views < 1 {
+                        return cosmic::iced::exit();
+                    }
+
+                    let task: Task<Message> = self
+                        .webview
+                        .update(web::Action::CloseView(*view_index))
+                        .map(cosmic::Action::from);
+
+                    self.nav.remove(id);
+                    return task;
+                }
+            }
+
+            _ => (),
         }
         Task::none()
     }
@@ -378,13 +411,6 @@ impl AppModel {
     }
 }
 
-/// The page to display in the application.
-pub enum Page {
-    Page1,
-    Page2,
-    Page3,
-}
-
 /// The context page to display in the context drawer.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum ContextPage {
@@ -395,6 +421,7 @@ pub enum ContextPage {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MenuAction {
     About,
+    NewTab,
 }
 
 impl menu::action::MenuAction for MenuAction {
@@ -403,6 +430,7 @@ impl menu::action::MenuAction for MenuAction {
     fn message(&self) -> Self::Message {
         match self {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+            MenuAction::NewTab => Message::NewTab,
         }
     }
 }
