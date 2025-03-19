@@ -348,17 +348,10 @@ impl Application for AppModel {
             }
 
             Message::CycleWebView => {
-                if let Some(current_view) = self.current_view.as_mut() {
-                    if *current_view + 1 > self.num_views {
-                        *current_view = 0;
-                    } else {
-                        *current_view += 1;
-                    };
-                    return self.webview.update(web::Action::ChangeView(*current_view));
-                } else {
-                    self.current_view = Some(0);
-                    return self.webview.update(web::Action::ChangeView(0));
-                }
+                self.current_view = Some(0);
+                return self
+                    .webview
+                    .update(web::Action::ChangeView(self.num_views - 1));
             }
 
             Message::GotoTab(tab) => {
@@ -372,7 +365,6 @@ impl Application for AppModel {
             }
 
             Message::NewTab => {
-                // TODO: startpage will go here too
                 self.nav
                     .insert()
                     .text("")
