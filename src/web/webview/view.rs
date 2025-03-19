@@ -156,13 +156,14 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                 self.current_view_index = Some(index as usize);
             }
             Action::CloseView(index) => {
+                let id_vec = self.view_ids.clone();
                 let id = self.index_as_view_id(index);
                 self.view_ids.remove(index as usize);
                 self.engine.remove_view(id);
+
                 // only change view if current or lower is closed
                 if let Some(cur_idx) = self.current_view_index {
-                    if index as usize == cur_idx {
-                        println!("{index}");
+                    if index as usize <= cur_idx {
                         {
                             self.view_size.width += 10;
                             self.view_size.height -= 10;
@@ -170,12 +171,12 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                             self.view_size.width -= 10;
                             self.view_size.height += 10;
                             self.engine.resize(self.view_size);
-                            self.engine
-                                .request_render(self.index_as_view_id(index - 1), self.view_size);
+                            self.engine.request_render(
+                                self.index_as_view_id((cur_idx - 1) as u32),
+                                self.view_size,
+                            );
                         }
-                    } else if index as usize <= cur_idx {
-                        // this conditional is ugly
-                        self.current_view_index = Some((index - 1) as usize);
+                        self.current_view_index = Some((cur_idx - 1) as usize);
                     }
                 }
 

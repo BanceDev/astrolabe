@@ -7,7 +7,6 @@ use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{time, Alignment, Length, Subscription};
-use cosmic::widget::segmented_button::Entity;
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{cosmic_theme, theme, Application, ApplicationExt, Apply, Element};
 use futures_util::SinkExt;
@@ -54,7 +53,7 @@ pub enum Message {
     CycleWebView,
     GotoTab(u32),
     NewTab,
-    CloseTab(Entity),
+    CloseTab(nav_bar::Id),
     Update,
 }
 
@@ -334,11 +333,24 @@ impl Application for AppModel {
                     if self.num_views < 1 {
                         return cosmic::iced::exit();
                     }
-
                     let task: Task<Message> = self
                         .webview
                         .update(web::Action::CloseView(*view_index))
                         .map(cosmic::Action::from);
+
+                    // shift down the index of every tab above the one removed
+                    let mut updates = Vec::new();
+                    for tab in self.nav.iter() {
+                        if let Some(index) = self.nav.data::<u32>(tab) {
+                            if index > view_index {
+                                updates.push((tab, index - 1));
+                            }
+                        }
+                    }
+
+                    for (tab, new_index) in updates {
+                        self.nav.data_set::<u32>(tab, new_index);
+                    }
 
                     self.nav.remove(id);
                     return task;
@@ -355,7 +367,14 @@ impl Application for AppModel {
         // Activate the page in the model.
         self.nav.activate(id);
 
-        self.update_title()
+        // change current web view
+        let mut tasks = Vec::new();
+        if let Some(tab) = self.nav.data::<u32>(id) {
+            tasks.push(cosmic::Task::done(Message::GotoTab(*tab)).map(cosmic::Action::from))
+        }
+        tasks.push(self.update_title());
+
+        Task::batch(tasks)
     }
 }
 
