@@ -152,7 +152,7 @@ impl Engine for Ultralight {
         self.renderer.render();
         if let Some(pixels) = self.get_view(id).view.surface().unwrap().lock_pixels() {
             self.get_view_mut(id).last_frame =
-                ImageInfo::new(pixels.to_vec(), PixelFormat::Rgba, size.width, size.height);
+                ImageInfo::new(pixels.to_vec(), PixelFormat::Bgra, size.width, size.height);
             self.get_view_mut(id).was_loading = false
         }
     }

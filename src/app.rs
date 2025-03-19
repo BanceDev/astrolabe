@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
-static URL: &'static str = "https://bance.dev";
+static URL: &'static str = "https://system76.com/cosmic/";
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
