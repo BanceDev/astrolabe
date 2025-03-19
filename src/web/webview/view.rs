@@ -17,6 +17,7 @@ use cosmic::theme::Theme;
 use cosmic::Element;
 use url::Url;
 
+use crate::startpage;
 use crate::web::{engine, ImageInfo, PageType, ViewId};
 
 #[allow(missing_docs)]
@@ -247,7 +248,7 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
         let id = self.engine.new_view(
             self.view_size,
             // TODO: put a homepage app here
-            Some(PageType::Url("https://system76.com/cosmic/".to_string())),
+            Some(PageType::Html(startpage::get_startpage())),
         );
         self.view_ids.push(id);
         self.current_view_index = Some(0);

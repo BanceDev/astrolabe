@@ -2,11 +2,15 @@
 
 use crate::config::Config;
 use crate::fl;
+use crate::startpage;
 use crate::web;
 use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::alignment::{Horizontal, Vertical};
+use cosmic::iced::keyboard::Key;
 use cosmic::iced::{time, Alignment, Length, Subscription};
+use cosmic::iced_core::keyboard::key::Named;
+use cosmic::widget::menu::key_bind::{KeyBind, Modifier};
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{cosmic_theme, theme, Application, ApplicationExt, Apply, Element};
 use futures_util::SinkExt;
@@ -14,7 +18,6 @@ use std::collections::HashMap;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
 const APP_ICON: &[u8] = include_bytes!("../resources/icons/hicolor/scalable/apps/icon.svg");
-static URL: &'static str = "https://system76.com/cosmic/";
 
 /// The application model stores app-specific state used to describe its interface and
 /// drive its logic.
@@ -37,6 +40,8 @@ pub struct AppModel {
     current_view: Option<u32>,
     // view count
     num_views: u32,
+    // id for search bar
+    search_id: widget::Id,
 }
 
 /// Messages emitted by the application and its widgets.
@@ -50,6 +55,7 @@ pub enum Message {
     WebView(web::Action),
     WebViewCreated,
     UrlChanged(String),
+    TitleChanged(String),
     CycleWebView,
     GotoTab(u32),
     NewTab,
@@ -105,11 +111,28 @@ impl Application for AppModel {
                 .unwrap_or_default(),
             webview: web::WebView::new()
                 .on_create_view(Message::WebViewCreated)
-                .on_url_change(Message::UrlChanged),
+                .on_url_change(Message::UrlChanged)
+                .on_title_change(Message::TitleChanged),
             webview_url: None,
             current_view: Some(0), // this will lead to a crash if init isnt called
             num_views: 1,
+            search_id: widget::Id::unique(),
         };
+
+        // map keybinds
+        macro_rules! bind {
+            ([$($modifier:ident),* $(,)?], $key:expr, $action:ident) => {{
+                app.key_binds.insert(
+                    KeyBind {
+                        modifiers: vec![$(Modifier::$modifier),*],
+                        key: $key,
+                    },
+                    MenuAction::$action,
+                );
+            }};
+        }
+        bind!([Ctrl], Key::Character("t".into()), NewTab);
+
         app.webview.init();
         // Create a startup command that sets the window title.
         let command = app.update_title();
@@ -118,7 +141,7 @@ impl Application for AppModel {
             .insert()
             .text(app.webview.get_view_title(0))
             .data::<u32>(0)
-            .icon(icon::from_name("applications-science-symbolic"))
+            .icon(icon::from_name("text-html-symbolic"))
             .closable()
             .activate();
 
@@ -147,6 +170,40 @@ impl Application for AppModel {
         vec![menu_bar.into()]
     }
 
+    fn header_center(&self) -> Vec<Element<Self::Message>> {
+        let mut elements = Vec::with_capacity(2);
+
+        if let Some(term) = self.webview_url.clone() {
+            if self.core.is_condensed() {
+                elements.push(
+                    widget::button::icon(widget::icon::from_name("system-search-symbolic"))
+                        .on_press(Message::GotoTab(0))
+                        .padding(8)
+                        .selected(true)
+                        .into(),
+                );
+            } else {
+                elements.push(
+                    widget::text_input::search_input("", term)
+                        .width(Length::Fill)
+                        .id(self.search_id.clone())
+                        .on_clear(Message::NewTab)
+                        .on_input(Message::UrlChanged)
+                        .into(),
+                );
+            }
+        } else {
+            elements.push(
+                widget::button::icon(widget::icon::from_name("system-search-symbolic"))
+                    .on_press(Message::NewTab)
+                    .padding(8)
+                    .into(),
+            );
+        }
+
+        elements
+    }
+
     fn nav_bar(&self) -> Option<Element<cosmic::Action<Self::Message>>> {
         if !self.core().nav_bar_active() {
             return None;
@@ -168,7 +225,7 @@ impl Application for AppModel {
                 .height(Length::Shrink);
 
         if !self.core().is_condensed() {
-            nav = nav.max_width(280);
+            nav = nav.max_width(225);
         }
 
         Some(Element::from(nav))
@@ -286,6 +343,10 @@ impl Application for AppModel {
                     .text_set(self.nav.active(), self.webview.get_current_view_title());
             }
 
+            Message::TitleChanged(title) => {
+                self.nav.text_set(self.nav.active(), title);
+            }
+
             Message::CycleWebView => {
                 if let Some(current_view) = self.current_view.as_mut() {
                     if *current_view + 1 > self.num_views {
@@ -316,13 +377,15 @@ impl Application for AppModel {
                     .insert()
                     .text("")
                     .data::<u32>(self.num_views)
-                    .icon(icon::from_name("applications-science-symbolic"))
+                    .icon(icon::from_name("text-html-symbolic"))
                     .closable()
                     .activate();
 
                 return self
                     .webview
-                    .update(web::Action::CreateView(web::PageType::Url(URL.to_string())))
+                    .update(web::Action::CreateView(web::PageType::Html(
+                        startpage::get_startpage(),
+                    )))
                     .map(cosmic::Action::from);
             }
 
