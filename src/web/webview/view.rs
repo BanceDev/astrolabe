@@ -48,6 +48,7 @@ where
     on_close_view: Option<Message>,
     on_create_view: Option<Message>,
     on_url_change: Option<Box<dyn Fn(String) -> Message>>,
+    on_change_view: Option<Message>,
     url: String,
     on_title_change: Option<Box<dyn Fn(String) -> Message>>,
     title: String,
@@ -87,6 +88,7 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> Default
             on_close_view: None,
             on_create_view: None,
             on_url_change: None,
+            on_change_view: None,
             url: String::new(),
             on_title_change: None,
             title: String::new(),
@@ -111,6 +113,11 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
 
     pub fn on_url_change(mut self, on_url_change: impl Fn(String) -> Message + 'static) -> Self {
         self.on_url_change = Some(Box::new(on_url_change));
+        self
+    }
+
+    pub fn on_change_view(mut self, on_change_view: Message) -> Self {
+        self.on_change_view = Some(on_change_view);
         self
     }
 
@@ -155,6 +162,10 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
                         .request_render(self.index_as_view_id(index), self.view_size);
                 }
                 self.current_view_index = Some(index as usize);
+
+                if let Some(on_change_view) = &self.on_change_view {
+                    tasks.push(cosmic::Task::done(on_change_view.clone()).map(cosmic::Action::from))
+                }
             }
             Action::CloseView(index) => {
                 let id = self.index_as_view_id(index);
@@ -163,8 +174,8 @@ impl<Engine: engine::Engine + Default, Message: Send + Clone + 'static> WebView<
 
                 // only change view if current or lower is closed
                 if let Some(cur_idx) = self.current_view_index {
-                    let cur_idx = if cur_idx == 0 { 0 } else { cur_idx - 1 };
                     if index as usize <= cur_idx {
+                        let cur_idx = if cur_idx == 0 { 0 } else { cur_idx - 1 };
                         {
                             self.view_size.width += 10;
                             self.view_size.height -= 10;

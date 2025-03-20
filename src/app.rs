@@ -6,10 +6,8 @@ use crate::startpage;
 use crate::web;
 use cosmic::app::{context_drawer, Action, Core, Task};
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::keyboard::Key;
 use cosmic::iced::{time, Alignment, Length, Subscription};
-use cosmic::iced_core::keyboard::key::Named;
 use cosmic::widget::menu::key_bind::{KeyBind, Modifier};
 use cosmic::widget::{self, icon, menu, nav_bar};
 use cosmic::{cosmic_theme, theme, Application, ApplicationExt, Apply, Element};
@@ -54,6 +52,7 @@ pub enum Message {
     LaunchUrl(String),
     WebView(web::Action),
     WebViewCreated,
+    WebViewClosed,
     UrlChanged(String),
     TitleChanged(String),
     CycleWebView,
@@ -111,6 +110,7 @@ impl Application for AppModel {
                 .unwrap_or_default(),
             webview: web::WebView::new()
                 .on_create_view(Message::WebViewCreated)
+                .on_close_view(Message::WebViewClosed)
                 .on_url_change(Message::UrlChanged)
                 .on_title_change(Message::TitleChanged),
             webview_url: None,
@@ -139,7 +139,7 @@ impl Application for AppModel {
 
         app.nav
             .insert()
-            .text(app.webview.get_view_title(0))
+            .text("New Tab")
             .data::<u32>(0)
             .icon(icon::from_name("text-html-symbolic"))
             .closable()
@@ -337,6 +337,23 @@ impl Application for AppModel {
                 return cosmic::Task::done(Message::CycleWebView).map(cosmic::Action::from);
             }
 
+            Message::WebViewClosed => {
+                let mut tab_id = None;
+                for tab in self.nav.iter() {
+                    if let Some(cv) = self.current_view {
+                        if let Some(data) = self.nav.data::<u32>(tab) {
+                            if *data == cv {
+                                tab_id = Some(tab);
+                            }
+                        }
+                    }
+                }
+
+                if tab_id.is_some() {
+                    self.nav.activate(tab_id.expect("tab id not found"));
+                }
+            }
+
             Message::UrlChanged(url) => {
                 self.webview_url = Some(url);
                 self.nav
@@ -348,13 +365,14 @@ impl Application for AppModel {
             }
 
             Message::CycleWebView => {
-                self.current_view = Some(0);
+                self.current_view = Some(self.num_views - 1);
                 return self
                     .webview
                     .update(web::Action::ChangeView(self.num_views - 1));
             }
 
             Message::GotoTab(tab) => {
+                self.current_view = Some(tab);
                 if tab <= self.num_views {
                     return self.webview.update(web::Action::ChangeView(tab));
                 }
@@ -367,7 +385,7 @@ impl Application for AppModel {
             Message::NewTab => {
                 self.nav
                     .insert()
-                    .text("")
+                    .text("New Tab")
                     .data::<u32>(self.num_views)
                     .icon(icon::from_name("text-html-symbolic"))
                     .closable()
